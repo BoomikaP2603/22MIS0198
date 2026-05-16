@@ -1,1 +1,55 @@
+const axios = require('axios');
 
+// The 0/1 Knapsack Algorithm
+function solveKnapsack(vehicles, capacity) {
+    const n = vehicles.length;
+    // dp[w] stores the max importance score for capacity w
+    let dp = new Array(capacity + 1).fill(0);
+    // track selected vehicle IDs
+    let selectedItems = new Array(capacity + 1).fill(null).map(() => []);
+
+    for (let i = 0; i < n; i++) {
+        const weight = parseInt(vehicles[i].estimated_duration);
+        const value = parseInt(vehicles[i].importance_score);
+        const id = vehicles[i].vehicle_id;
+
+        // Iterate backwards to ensure each vehicle is used only once
+        for (let w = capacity; w >= weight; w--) {
+            if (dp[w - weight] + value > dp[w]) {
+                dp[w] = dp[w - weight] + value;
+                selectedItems[w] = [...selectedItems[w - weight], id];
+            }
+        }
+    }
+    return { maxScore: dp[capacity], selected: selectedItems[capacity] };
+}
+
+async function runScheduler() {
+    const API_URL = 'http://4.224.186.213/evaluation-service/vehicles';
+    const depots = [
+        { id: 1, capacity: 60 },
+        { id: 2, capacity: 135 },
+        { id: 3, capacity: 188 },
+        { id: 4, capacity: 97 },
+        { id: 5, capacity: 164 }
+    ];
+
+    try {
+        console.log("Fetching vehicle data from API...");
+        const response = await axios.get(API_URL);
+        const vehicles = response.data;
+
+        console.log("\n--- Maintenance Schedule Results ---");
+        depots.forEach(depot => {
+            const result = solveKnapsack(vehicles, depot.capacity);
+            console.log(`\nDepot ${depot.id} (Limit: ${depot.capacity} hrs)`);
+            console.log(`Max Importance Score: ${result.maxScore}`);
+            console.log(`Vehicles Scheduled: ${result.selected.join(', ')}`);
+        });
+
+    } catch (error) {
+        console.error("Error fetching data:", error.message);
+    }
+}
+
+runScheduler();
